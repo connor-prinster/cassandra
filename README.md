@@ -114,6 +114,7 @@ select * from videos_by_tag where tag = 'cassandra' AND added_date >= '2013-01-0
 
 # Exercise 5
 ```python
+# as long as you've run 'sudo pip install cassandra-driver', you're golden here
 from cassandra.cluster import Cluster
 
 # connect to the database
@@ -131,3 +132,30 @@ session.execute("insert into videos_by_tag (tag, added_date, title, video_id) va
 # delete from database
 session.execute("DELETE FROM videos_by_tag where timestamp=2020-10-16 00:00:00.000000+0000';
 ```
+
+# Exercise 6
+## ./nodetool flags
+command | what it does
+--- | ---
+help | shows all options
+status | shows information about entire cluster and the state of each node
+info | shows information about connected node
+describecluster | shows settings that are common across all nodes in the cluster
+getlogginglevels | shows how each issue/situation will be logged
+setlogginglevel | dynamically changes the logging level without the need of a sestart. 
+settraceprobability | decimal describing percentage of queries being saved. It is saved in the `system_traces` keyspace
+drain | stops writes from occuring on node and flushes data to disk
+stopdaemon | stops an execution
+flush | writes all written data to disk. It allows further writes to occur
+
+## CQLSH Stuff
+* To see current keyspaces
+```sql
+DESCRIBE KEYSPACES;
+```
+* current tables
+```sql
+DESRIBE TABLES
+```
+
+
