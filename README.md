@@ -100,3 +100,34 @@ CREATE TABLE videos_by_tag(
     PRIMARY KEY((tag), added_date)
 )
 WITH CLUSTERING ORDER BY (added_date DESC);
+```
+
+* Select from videos_by_tag with oldest video first
+```sql
+select * from videos_by_tag WHERE tag='cassandra' ORDER BY added_date DESC;
+```
+
+* restrict partition key to 'cassandra' and retrieve videos made in 2013 or later
+```sql
+select * from videos_by_tag where tag = 'cassandra' AND added_date >= '2013-01-01 00:00:00.000000+0000';
+```
+
+# Exercise 5
+```python
+from cassandra.cluster import Cluster
+
+# connect to the database
+cluster = Cluster(protocol_version = 3)
+session = cluster.connect('killrvideo')
+
+# get data (with a formatter)
+print('{0:12} {1:40} {2:5}'.format('Tag', 'ID', 'Title'))
+for val in session.execute("select * from videos_by_tag"):
+    print('{0:12} {1:40} {2:5}'.format(val[0], val[2], val[3]))
+
+# insert into database
+session.execute("insert into videos_by_tag (tag, added_date, title, video_id) values ('stuff', '2020-10-16 00:00:00.000000+0000', 'title stuff', 4845ed97-14bd-11e5-8a40-8338255b7e34)")
+
+# delete from database
+session.execute("DELETE FROM videos_by_tag where timestamp=2020-10-16 00:00:00.000000+0000';
+```
