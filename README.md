@@ -53,3 +53,36 @@ SELECT COUNT(*) FROM videos
 ```sql
 EXIT
 ```
+
+## Exercise 3
+* View metadata
+```sql
+DESCRIBE TABLE videos
+```
+
+* What is the partition key?: Partition key is the first column. All rows containing the partition key are stored on the same physical node. insertion/update/delete on rows with same partition key are performed atomically.
+* Clustering columns: clustering key groups columns in a row. You can have multiple cluster key groups
+* info above taken heavily from [this StackOverflow answer](https://stackoverflow.com/questions/24949676/difference-between-partition-key-composite-key-and-clustering-key-in-cassandra#:~:text=In%20CQL%2C%20the%20order%20in,on%20the%20same%20physical%20node.)
+
+* write a CREATE TABLE statment that will store data partioned by tags
+```sql
+CREATE TABLE videos_by_tag(
+    tag text,
+    video_id timeuuid, 
+    added_date timestamp, 
+    title text, 
+    PRIMARY KEY((tag, video_id))
+);
+```
+
+* copy data into videos_by_tag
+```sql
+COPY videos_by_tag(tag, video_id, added_date, title)
+FROM '/home/ubuntu/labwork/data-files/videos-by-tag.csv'
+WITH HEADER = TRUE;
+```
+
+* Select data tagged with *cassandra*
+```sql
+SELECT * FROM videos_by_tag WHERE tag='cassandra' ALLOW FILTERING
+```
