@@ -86,3 +86,17 @@ WITH HEADER = TRUE;
 ```sql
 SELECT * FROM videos_by_tag WHERE tag='cassandra' ALLOW FILTERING
 ```
+
+# Exercise 4
+* Drop `videos_by_tag` table
+* Modify `CREATE TABLE videos_by_tag (tag text,video_id uuid, added_date timestamp, title text, PRIMARY KEY ());` to partition based on the tag. The table should also store the rows of each partiotion so that the newset videos are listed first
+
+```sql
+CREATE TABLE videos_by_tag(
+    tag text,
+    video_id timeuuid,
+    added_date timestamp,
+    title text,
+    PRIMARY KEY((tag), added_date)
+)
+WITH CLUSTERING ORDER BY (added_date DESC);
