@@ -158,4 +158,74 @@ DESCRIBE KEYSPACES;
 DESRIBE TABLES
 ```
 
+# Exercise 7
 
+Start up node1 and node2
+
+```sql
+CREATE KEYSPACE killrvideo
+WITH replication = {'class': 'SimpleStrategy',
+'replication_factor': 1 };
+USE killrvideo;
+CREATE TABLE videos (
+ id uuid,
+ added_date timestamp,
+ title text,
+ PRIMARY KEY ((id))
+);
+COPY videos(id, added_date, title)
+FROM '/home/ubuntu/labwork/data-files/videos.csv'
+WITH HEADER=TRUE;
+CREATE TABLE videos_by_tag (
+ tag text,
+ video_id uuid,
+ added_date timestamp,
+ title text,
+ PRIMARY KEY ((tag), added_date, video_id))
+ WITH CLUSTERING ORDER BY(added_date DESC);
+COPY videos_by_tag(tag, video_id, added_date, title)
+FROM '/home/ubuntu/labwork/data-files/videos-by-tag.csv'
+WITH HEADER=TRUE;
+```
+
+Running `/home/ubuntu/resources/cassandra/bin/nodetool/getendpoints killrvideo videos_by_tag 'cassandra'` will return the IP addresses of the node(s) which store the partitions with the key value (*cassandra* or *datastax* in our case). 
+
+
+# Exercise 9 - VNodes
+
+If you set up `vim /home/ubuntu/node2/resources/cassandra/conf/cassandra.yaml` to have `num_tokens: 128` and comment out `initial_token`, starting up the two nodes will have 128 tokens within both.
+
+Cassandra sets the tokens itself.
+
+# Exercise 10 - Gossip
+A Gossip Node starts up the gossip step to make sure that each node has the proper (most up-to-date) information
+
+Gossipping stage runs continuously in the background and does not affect traffic
+
+* each node initiates a gossip round every second
+* a node picks 1-3 to gossip to
+* can gossip to ANY other node
+* Slightly favor seed and downed nodes
+* Nodes don't track who they communicated with before
+* reliably and efficiently spreads node metadata throughout cluster
+* fault tolerant--continues to spread even if nodes fail.
+
+Gossip Metadata (Endpoint State):
+* Heartbeat State:
+    * generation (timestamp boostrapped)
+    * version
+* Application State:
+    * Status=NORMAL/BOOTSTRAP/LEFT/REMOVE
+    * DC (Data Center)
+    * Rack
+    * SCHEMA
+    * Load
+    * ...
+* A node sends out a SYN message, it receives an ACK message.
+* If ACK message tells original node it is out of date, it sends an ACK2 message to second node. 
+    * The second node responds to the ACK2 with an updated ACK2 containing the proper data
+
+To check gossip information on the cluster, run this
+```sh
+/home/ubuntu/node1/resources/cassandra/bin/nodetool gossipinfo
+```
