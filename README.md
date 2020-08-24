@@ -229,3 +229,72 @@ To check gossip information on the cluster, run this
 ```sh
 /home/ubuntu/node1/resources/cassandra/bin/nodetool gossipinfo
 ```
+
+# Exercise 11 - Snitch
+
+Some snippets from the exercise
+
+* Edit /home/ubuntu/node1/resources/cassandra/conf/cassandra.yaml and
+find the endpoint_snitch setting.
+NOTE: Using endpoint_snitch default DseSimpleSnitch places your node in a
+datacenter that is based upon work type
+```yml
+# You can use a custom Snitch by setting this to the full class name
+# of the snitch, which will be assumed to be on your classpath.
+endpoint_snitch: com.datastax.bdp.snitch.DseSimpleSnitch
+```
+* Change the endpoint_snitch to GossipingPropertyFileSnitch.
+```yml
+# You can use a custom Snitch by setting this to the full class name
+# of the snitch, which will be assumed to be on your classpath. 
+endpoint_snitch: GossipingPropertyFileSnitch
+```
+
+* Edit /home/ubuntu/node1/resources/cassandra/conf/cassandrarackdc.properties file.
+```yml
+# These properties are used with GossipingPropertyFileSnitch and will
+# indicate the rack and dc for this node
+dc=dc1
+rack=rack1
+```
+
+/home/ubuntu/node1/bin/dsetool status
+Notice the differing datacenter assignments now.
+
+```yml
+DC: east-side Workload: Cassandra Graph: no
+======================================================
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+-- Server ID Address Load Owns VNodes Rack Health [0,1]
+UN 06-74-00-EF-3F-E8 127.0.0.2 142.47 KiB ? 128 hakuna-matata 0.20
+DC: west-side Workload: Cassandra Graph: no
+======================================================
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+-- Server ID Address Load Owns VNodes Rack Health [0,1]
+UN 06-74-00-EF-3F-E8 127.0.0.1 117.54 KiB ? 128 hakuna-matata 0.20 
+```
+
+# Replication
+
+* multiple nodes is responsible for certain range of data based on partitioner
+
+### Examples
+* RF=1
+    * each node stores only its own data
+    * if data comes into the wrong partition, that node shoves it off to the correct partition
+* RF=2
+    * each node tracks its own data AND one of its neigbhors' data
+    * if data comes to wrong partition, the data is copied to both nodes holding the data.
+* RF=3
+    * typically a good replication factor
+    * It's a good chance that all data will remain up, even if nodes go down
+
+### Node Goes Down
+* if two nodes go down, a replication factor has already spread its data across **n=RF** nodes. If someone tries to write to the database, it PROBABLY has a home for it.
+
+### Multiple datacenters
+* snitch makes sure that it gets to both datacenters
+
+# Exercise 12 - Replication
