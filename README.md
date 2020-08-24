@@ -298,3 +298,37 @@ UN 06-74-00-EF-3F-E8 127.0.0.1 117.54 KiB ? 128 hakuna-matata 0.20
 * snitch makes sure that it gets to both datacenters
 
 # Exercise 12 - Replication
+
+Apache Cassandra™ doesn't have to have an actual partition with a key value to
+determine which nodes will store that partition. You can try any partition key value you
+like. For example, try the following:
+```sh
+/home/ubuntu/node1/resources/cassandra/bin/nodetool getendpoints killrvideo
+videos_by_tag 'action'
+/home/ubuntu/node1/resources/cassandra/bin/nodetool getendpoints killrvideo
+videos_by_tag 'horror'
+```
+
+# Exercise 13 - Consistency:
+
+* CAP Theorem (distrubuted systems)
+    * Consistency: All data in all replicas are identical
+    * Availability: make sure everything can see the database at any time (cassandra)
+    * Partition Tolerance: have nodes not see each other (cassandra)
+
+* Consistency Level (CL)
+    * CL=1
+        * only one replica needs to acknowledge read/write
+        * Fastest consistency level
+    * CL=QUORUM (Strongly consistent) 
+        * 51% acknowledges write or agrees on read
+    * CL=ALL
+        * All nodes must agree on EVERYTHING
+        * slowest
+        * removing partitions
+        * making all nodes into one.
+
+* change where cqlsh connects:
+```
+nodeX/bin/cqlsh 127.0.0.x <port>
+```
