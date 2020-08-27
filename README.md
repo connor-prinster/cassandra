@@ -330,5 +330,18 @@ videos_by_tag 'horror'
 
 * change where cqlsh connects:
 ```
-nodeX/bin/cqlsh 127.0.0.x <port>
+nodeX/bin/cqlsh 127.0.0.x 904x
 ```
+
+# Exercise 14 - Hinted Handoffs
+* If a coordinator node attempts to send data to a downed replication node, the coordinator node holds onto the data. Once the replication comes back on, the coordinator node sends the hint again
+    * these hints are stored in a file we specify
+    * you can disable hinted handoffs
+    * default store time is 3 hours. This can be changed.
+
+* Using `CONSISTENCY ANY` allows even a hint to be sufficient. This is not good
+
+* You can see the hints inside the `nodeX/data/hints`. If we do the following command *CONSISTENCY ANY* in cqlsh, and the nodes are down, it will be stored in that `hints` folder until the nodes are back online
+
+# Read Repair
+* 
