@@ -344,4 +344,33 @@ nodeX/bin/cqlsh 127.0.0.x 904x
 * You can see the hints inside the `nodeX/data/hints`. If we do the following command *CONSISTENCY ANY* in cqlsh, and the nodes are down, it will be stored in that `hints` folder until the nodes are back online
 
 # Read Repair
-* 
+* Read repair always occurs wehn consistency level is set to *ALL*
+* `read_repair_chance` sets the probability which Cassandra will perform a read repair with a consistency level less than *ALL*
+
+# Node Sync:
+* can set time that we check that all nodes are synced with latest data
+```sql
+CREATE TABLE myTable (...) WITH nodesync = {'enabled': 'true'}
+```
+
+# Exercise 16: Write Path //TO-DO//
+* RAM: (MemTable) 
+    * Data is stored according to partition order
+    * If full, Cassandra *flushes* it down to HDD
+* HDD-1: (commit log) 
+    * Data is "committed" to the bottom no matter what
+    * nuked when MemTable is *flushed*
+    * used when a crashded node restarts
+* HDD-2: (Storted Stream Table)
+    * When commit log is nuked, the data turns into this
+    * Sorted Stream Table
+        * sorted partition value
+        * immutable
+* a `WRITE` operation is acknowledged by a client when the **commit log** and the **MemTable** are written to
+
+# Exercise 17: Read Path
+* Reads from an SSTable
+* The partitions in an SSTable is actually stored on disk because of how big it is.
+* Cassandra builds a `Partition Summary` (in RAM) as a list of **byte offsets** inside the partitions. Easier and fewer comparisons.
+* Uses something called a `Bloom Filter` which checks if it **might** be there.
+* trie-based algorithm?
