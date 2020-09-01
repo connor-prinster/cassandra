@@ -374,3 +374,16 @@ CREATE TABLE myTable (...) WITH nodesync = {'enabled': 'true'}
 * Cassandra builds a `Partition Summary` (in RAM) as a list of **byte offsets** inside the partitions. Easier and fewer comparisons.
 * Uses something called a `Bloom Filter` which checks if it **might** be there.
 * trie-based algorithm?
+
+# Exercise 18: Compaction
+* compacts multiple partitions in multiple partitions
+    * will always choose the latest timestamp 
+    * if combination of tables has a comparision between `Betsy` and `<insert tombstone longer than "grace seconds allowed>`, both are nuked and neither are added to the new SSTable
+    * Doesn't matter what the old value is, the newer value will always replace it.
+    * If a tombstone is not more than `grace seconds allowed`, but is the latest change, the tombstone will be written to the new SSTable
+* in which scenario would a new partition on disk be larger than either of its input partition segments after a compaction?
+    * input partition segments are mainly `INSERT` operations
+* benefits of compaction:
+    * more optimal disk usage
+    * faster reads
+    * less memory pressure
