@@ -1,5 +1,8 @@
 # DataStax Cassandra Course
+## [Cassandra 201](#Cassandra-201)
+## [Cassandra 202](#Cassandra-202)
 
+# Cassandra-201
 ## Exercise 2
 Data is organized as below
 
@@ -387,3 +390,87 @@ CREATE TABLE myTable (...) WITH nodesync = {'enabled': 'true'}
     * more optimal disk usage
     * faster reads
     * less memory pressure
+
+
+# Cassandra-202
+
+## Data Modeling
+In Cassandra, this is when we start thinking about keys, tables, and columns
+
+## Relational vs Apache Cassandra
+* We think of the *Application* before we start thinking about how to model the data (what we need to cluster on in order for the fastest read time).
+    * in relational, *Application* is the last thing we worry about
+* Cassandra cannot comply with ACID
+* Joins are essentially not possible because Cassandra may have unequal tables
+* "Visuals" of difference between Relational and Cassandra
+    * Relational: `Data -> Model -> Application`
+    * Cassandra: `Application -> Model -> Data`
+* ACID
+
+    | Term | Definition | Cassandra Fails it
+    | --- | --- | --- | 
+    | Atomicity | All statements in a transaction succeed (commit) or none of them do (rollback)
+    | Consistency | Transactions cannot leave database in inconsistent state. New database state must satisfy integrity constraints
+    | Isolation | Transactions do not interfere with each other
+    | Durabilility | completed transactions persist in the event of subsequent failure
+
+
+* The reason Cassandra doesn't enforce referential integrity is that it would require a read before a write.
+    * it falls on the developer's side to adjust/fix that.
+
+# More CQL
+* keyspaces: contain table
+* tables: contains data
+* basic data types
+    * text/Ascii/Varchar
+    * uuid
+    * timestamp
+    * int
+    * timeUUID    
+    * Blob: arbitrary bytes
+    * Boolean
+    * Counter (only one counter column per table)
+    * Inet: IP address
+* import CSV
+* USE: select keyspace
+* SELECT: select rows based on certain data
+* TRUNCATE: wipe data from a table. Keeps the schema though
+* ALTER TABLE: can change schema EXCEPT for the primary key
+    * ADD column
+    * DROP ccolumn
+* SOURCE: execcutes a file containing CQL file
+    * SOURCE `'./myscript.cql';`
+
+
+# Data modeling
+* Partition: 
+    * row(s) of data
+* Partition key:
+    * defines the node on which the data is stored
+    * Partition key determines which node the partition resides on
+* Row
+    * one or more CQL columns stored together on a partition
+* Column
+    * similar to a relational column
+    * primary key
+        * used to access data in a table and guarantees uniqueness
+* Clustering Column
+    * defines the order of rows *within* a partition
+
+# Querying
+* MUST use all fields that make up a `PRIMARY KEY` in order to query a database.
+
+# Clustering Columns
+* How Cassandra sorts data within each partition
+* Sort of example
+* PRIMARY KEY((id)) vs PRIMARY KEY((year), title)
+    1. three different partitions
+    2. Two partitions based on `year`.
+* If we do not specify `WITH CLUSTERING ORDER` in a table like below, it will automatically sort `ASC`
+    ```sql
+    CREATE TABLE videos(
+        ...
+        PRIMARY KEY ((year), name)
+    )
+    WITH CLUSTERING ORDER BY (name DESC);
+    ```
