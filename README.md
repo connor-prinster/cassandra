@@ -474,3 +474,94 @@ In Cassandra, this is when we start thinking about keys, tables, and columns
     )
     WITH CLUSTERING ORDER BY (name DESC);
     ```
+
+# Denormalizing
+* joins cannot be done on Cassandra tables
+
+# Table Features
+* Can use UDTs, or User Defined Types
+* Can use counters in one column of each table.
+
+# Data Scructures
+* Collections:
+    * multi-valued columns
+    * SET
+        * stored unordered
+        * retrieved in sorted
+        * Example:
+        ```sql
+            CREATE TABLE users (
+                emails set<text>
+            );
+        ```
+    * LIST
+        * stored in order
+        * example
+        ```sql
+        ALTER TABLE users ADD freq_dest list<text>;
+        ```
+    * MAP
+        * key-value pair
+            * both with type
+        *  example
+        ```sql
+        ALTER TABLE users ADD todo map<timestamp, text>;
+        ```
+    * FROZEN    
+        * nest datatypes
+        * serialize multiple components into a single value
+        * treated like blobs
+        * example
+            ```sql
+            ALTER TABLE videos ADD encoding list<frozen<video_encoding>>;
+            ```
+
+# UDTs
+* group related fields of information that are named and typed
+* can contain any supported type
+* definition example   
+    ```sql
+    CREATE TYPE address (
+        street text,
+        city text,
+        zip_code int,
+        phones set<text>
+    );
+
+    CREATE TYPE full_name (
+        first_name text,
+        last_name text
+    )
+    ```
+* usage example
+    ```sql
+    CREATE TABLE users (
+        id uuid,
+        name frozen <full_name>,
+        direct_reports set<frozen <full_name>>,
+        addresses map<text, frozen<address>>,
+        PRIMARY KEY ((id))
+    );
+    ```
+
+# Counters
+Example of how to create a counter in a table
+```sql
+CREATE TABLE moo_counts (
+    cow_name text,
+    moo_count counter,
+    PRIMARY KEY((cow_name))
+);
+
+UPDATE moo_counts
+SET moo_count = moo_count + 8;
+WHERE cow_name = 'Betsy';
+```
+
+* Counter considerations:
+    * distributed systemcs can cause consistency issues with counters
+    * cannot INSERT or assign values. Default value is 0
+    * Must be only non-primary key column(s)
+    * Not idempotent
+    * Must use UPDATE command (dse rejects using TIMESTAMP or TTL to update counter columns)
+    * Counter columns cannot b eindexed or deleted
