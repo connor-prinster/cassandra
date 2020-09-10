@@ -564,4 +564,260 @@ WHERE cow_name = 'Betsy';
     * Must be only non-primary key column(s)
     * Not idempotent
     * Must use UPDATE command (dse rejects using TIMESTAMP or TTL to update counter columns)
-    * Counter columns cannot b eindexed or deleted
+    * Counter columns cannot be indexed or deleted
+
+# UDFs and UDAs
+* UDF: user defined functions
+    * write custom function using Java and Javascript
+    * used in SELECT, INSERT, and UPDATE
+    * can only be used in KEYSPACE you created it in
+    * to enable:
+        * in Java **cassandra.yaml** file, set `enable_user_defined_functions` to `true`
+        * in JavaScript **cassandra.yaml** file, set `enable_scripted_user_defined_functions` to `true`
+    * example:
+        ```sql
+        CREATE OR REPLACE
+            FUNCTION avgState (stat tuple<int, float>, val float)
+            CALLED ON NULL INPUT
+            RETURNS tuple<int, float>
+            LANGUAGE java
+            AS 'if(val != null) {
+                    state.setInt(0, state.getInt(0) + 1);
+                    state.setFloat(1, state.getFloat(1)  val.floatValue());
+                }
+                return state;';
+        ```
+        ```sql
+        CREATE OR REPLACE
+            FUNCTION avgFinal(state tuple<int, float>)
+            CALLED ON NULL INPUT
+            RETURNS float
+            LANGUAGE java
+            AS 'float r = 0;
+            if(state.getInt(0) == 0) return null;
+            r = state.getFloat(1);
+            r /= state.getInt(0);
+            return Float.valueOf(r);';
+        ```
+* UDA: user defined aggregations
+    * use UDF to get information you need from table
+    * query must only include the aggregate function only
+    * example
+    ```sql
+    CREATE AGGREGATE
+        IF NOT EXISTS average ( float )
+        SFUNC avgState
+        STYPE tuble<int, float>
+        FINALFUNC avgFinal
+        INITCOND (0, 0);
+    ```
+
+* Querying with the example UDA and UDF:
+    * state function is called once for each row
+    * the value returned by the state function becomes the new state
+    * after all rows are processed, the optional final function is executed with the last state value as its argument
+    * aggregation is performed by the coordinator
+    * example
+    ```sql
+    select average(avg_rating) from videos where release_year=2002 ALLOW FILTERING;
+    select average(avg_rating) from videos where title='Planet of the Apes' ALLOW FILTERING;
+    select average(avg_rating) from videos where mpaa_rating = 'G' ALLOW FILTERING;
+    select average(avg_rating) from videos where genres contain 'Romance' ALLOW FILTERING;
+    ```
+
+# Conceptual Data Modeling
+
+* What Else seciton of Exercise 4.1
+    * Attributes
+        * previously checked out videos
+    * Relationships
+        * is watched by
+        * is downloaded by
+    
+# Application Workflow and Access Patterns
+* Application Workflow: Tasks formed by causal dependencies
+
+* Worksheet Answers
+    * Q3 -> find comments posted by user
+    * Q5 -> find comments posted for a video with a known id
+    * Q5 -> Find an average rating with a known id
+    * Q5 -> Find trailers for a video with a known id
+    * Q3 -> Find interactions with a video id -> Q5
+    * Q5 -> find actors based on video data
+
+# Conceptual to Logical Model
+* Important to realize: A UDT (user defined type) is basically just a table without a primary key 
+* only difference between conceptual and logical is that we have to type it out
+
+# Logical Data Modeling
+* Better to duplicate than to join
+    * partition per query and data nesting may result in data duplication
+    * query results are pre-computed and materialized
+    * data can be duplicated across tables, partitions and/or rows
+    * e.g.
+        * videos_by_actor, videos_by_genre, and videos_by_tag all have the `video_id`, `title`, `type`, and `tags` attributes in it.
+* Data duplication can scale, joins cannot
+* Mapping rules:
+    1. entities and relationships
+    2. equality search attributes
+    3. inequality search attributes
+    4. ordering attributes
+    5. key attributes
+
+
+# Exercise 4.3 - Extend the KillrVideo Logical Model
+* Find all user videos that match a specific tag (show the most recent uploaded videos first)
+    1. What entity or relationship type is being stored in a partition or row?
+        * (userId, tag), release_year, videoId
+    2. What are the key attribute(s) for this table?
+        * userId, tag
+    3. What attribute is used for the partition key(s) that enabled the equality query?
+        * userId, tag
+    4. What attribute is used for the cluster column(s) that enables the inequality / range scan?
+        * videoId
+    5. What are the clustering column(s) and ordering that support the required
+    results?
+        * release_year
+* Find all movies that feature a specific actor and release year range
+    1. What entity or relationship type is being stored in a partition or row?
+        * (actor, release_year), title, videoId
+    2. What are the key attribute(s) for this table?
+        * actor, release_year
+    3. What attribute is used for the partition key(s) that enabled the equality query?
+        * actor
+    4. What attribute is used for the cluster column(s) that enables the inequality / range scan?
+        * release_year
+    5. What are the clustering column(s) and ordering that support the required
+    results?
+        * release_year, title
+* Find all movies that feature a specific actor, genre, and release year range (show most recent videos first, then sorted by title)
+    1. What entity or relationship type is being stored in a partition or row?
+        * (actor_id, genre, release_year), title
+    2. What are the key attribute(s) for this table?
+        * actor_id, genre, release year
+    3. What attribute is used for the partition key(s) that enabled the equality query?
+        * actor_id, genere, release_year
+    4. What attribute is used for the cluster column(s) that enables the inequality / range scan?
+        * release_year
+    5. What are the clustering column(s) and ordering that support the required
+    results?
+        * title
+
+# Physical Data Modeling
+Example of `comments_by_user`
+```sql
+CREATE TABLE comments_by_user (
+    user_id UUID,
+    posted_timestamp TIMESTAMP,
+    video_id TIMEUUID,
+    comment TEXT,
+    title TEXT,
+    type TEXT,
+    tags SET<TEXT>,
+    preview_thumnails MAP<INT, BLOB>,
+    PRIMARY KEY ((user_id), posted_timestamp, video_id)
+)
+WITH CLUSTERING ORDER BY (posted_timestamp DESC, video_id ASC)
+```
+
+# Write Techniques
+* `BATCH` operations
+    * are replicated and stored in multiple nodes
+    * not intended for bulk loading
+        * rarely increases performance of data load
+        * can overwork the coordinator and causes performance bottlenecks or other issues
+    * example
+        ```sql
+        BEGIN BATCH
+            INSERT INTO ...;
+            UPDATE ...;
+            DELETE ...;
+        APPLY BATCH;
+        ```
+* `Compare and Set (CAS) operation
+    * does a read to check condition and then does an INSERT/UPDATE/DELETE if condition is true
+    * more expensive than regular reads and writes.
+
+# Read Techniques
+* Create indices that you can search for just like the partition key
+    * example
+    ```sql
+    create index idx on actors_by_video(character_name);
+    ```
+    
+* Materialized Views
+```sql
+CREATE MATERIALIZED VIEW IF NOT EXISTS viewer
+AS SELECT video_id
+FROM videos
+WHERE user_id IS NOT NULL
+PRIMARY KEY(<all primary keys>, whatever you want to search by)
+```
+
+# Exercise 5.3
+2. must pull all counts of views from wherever in all partitions it may be stored in
+    * would add a counter column that added each time a video is retrieved.
+3. requirements
+    * Schema: 
+        * 
+        ```sql
+        CREATE TABLE IF NOT EXISTS video (
+            video_id UUID,
+            uploaded_timestamp TIMESTAMP,
+            title TEXT,
+            description TEXT,
+            type TEXT,
+            release_date TIMESTAMP,
+            tags LIST<TEXT>,
+            thumbnails SET<TEXT, BLOB>,
+            genres LIST<TEXT>,
+            views COUNTER,
+            PRIMARY KEY ((video_id))
+        );
+        ```
+    * retrieve daily count of the number of views for a video for a particular year and month
+        * `SELECT views FROM videos WHERE year=<year> AND month=<month>`
+    * Is it possible retrieve all-time number of views for a video?
+        * `SELECT views FROM videos WHERE video_id=<example>`
+    * anything from application side?
+        * need to send in a counter increase request when requesting a video 
+    * How would your design increment a video's view count?
+        * I would increase it like the below query
+            ```sql
+            UPDATE video
+            SET views = views + 1;
+            WHERE video = <video_id>;
+            ```
+4. The intern, being ever helpful, suggested that it would be useful to also display the top 10 videos for each month, based on the number of views.
+    * Would it be possible to query this information in Cassandra
+        * I would say no because we'd have to select all the videos for a given month from all nodes and then compare them to one another. This is made even harder by the fact that we don't have a table that stores when a video was watched.
+    * Could you do this outside of Cassandra?
+        * yes
+        * The way to do this would be to have a separate non-Cassandra table that looks like this
+            * 
+            ```sql
+            CREATE TABLE IF NOT EXISTS totalViews (
+                video_id UUID,
+                views INT,
+                month TIMESTAMP,
+                PRIMARY KEY (video_id, month)
+            )
+        * Every time a video is queried from Cassandra, we would either increment the `views` column for `totalViews` or insert a new row. 
+        * When the month was over, we would run the following query
+        ```sql
+        SELECT video_id, views
+        FROM totalViews 
+        WHERE month=:month 
+        ORDER BY views DESC
+        LIMIT 10;
+        ```
+        * With the results of the above query, get the metadata from the Cassandra tables.
+5. Review the above requirement #2?
+6. Modify the `videos` table and/or come up with your own table schema that will meet the following: 
+    * Questions
+        * What is the query to retrieve the total number of videos uploaded on a specific day?
+        * What is the query to retrieve the combined duration of all videos uploaded on a specific day?
+        * What is the query to get the average duration of all videos uploaded on a specific day?
+        * Explain how these values are updated whenever a new video is uploaded.
+    * Answers
+        *  total number of videos uploaded on specific day
