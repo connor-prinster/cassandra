@@ -853,5 +853,40 @@ PRIMARY KEY(<all primary keys>, whatever you want to search by)
             WHERE uploaded_timestamp > <min> AND uploaded_timestamp < <max>
             ```
         * Whenever `videos` is updated, `upload_counts` will be updated soon after. The new calls can be made to that.
-        
+
 # Exercise 5.4
+
+```SQL
+SELECT title, CAST(release_date AS text)
+FROM videos
+WHERE genres CONTAINS 'Horror'
+ALLOW FILTERING;
+```
+
+# Table/Key Optimizations
+* Cassandra uses the following way to make a PRIMARY KEY
+    * ((primary key) <clustering columns that get less important as it goes on>)
+* Natural keys: keys from the user's data
+* Surrogate Keys: things like random UUIDs that the database creates for you
+    * typically of uniform size and performance.
+* If a partition gets too large, you may have to split it with another column
+
+# Exercise 5.5 Table Optimizations
+* PART 1
+    * If there is a 20kb snapshot every 20 seconds, that is 60kb a minute. If the worst-case video is 6 hours, that is 360 minutes. This means that there is about 21 mb of screenshots for a single video
+    * No, that's not an awful amount of data per partition
+* PART 2
+    * worst-case, user uploads 500 videos. Assuing worst-case `preview_thumbnails` as well, that's roughly 10.5 gigabytes
+    * this should be a candidate for split partitions
+    * We should split `preview_thumbnails` into its own partition with the PK being `((user_id), video_id)`. 
+* PART 3-4
+    * We should split the table into two different tables with two different PK combinations and other columns
+        * User comments table: `((user_id), video_id), comment`
+        * Video table `((video_id), posted_timestamp, title), type, tags, preview_thumbnails, `
+* Quiz
+    * Cassandra keys support a query and provide uniqueness; relational keys provide only uniqueness
+    * Advantages of a surrogate key:
+        * consistent size has consistency and predictable performance
+        * users never need to update them
+        * users not be concerned with their value
+    * Adding an artificial column gives you more control than choosing an exisiting column
