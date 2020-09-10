@@ -820,4 +820,38 @@ PRIMARY KEY(<all primary keys>, whatever you want to search by)
         * What is the query to get the average duration of all videos uploaded on a specific day?
         * Explain how these values are updated whenever a new video is uploaded.
     * Answers
-        *  total number of videos uploaded on specific day
+        *  I would edit the table (and then query it) with an index on the uploaded_timestamp
+            * 
+            ```sql
+            CREATE MATERIALIZED VIEW IF NOT EXISTS uploads_per_day
+            AS SELECT video_id
+            FROM videos
+            WHERE video_id IS NOT NULL
+            PRIMARY KEY(video_id, uploaded_timestamp)
+            
+            
+            SELECT COUNT(*)
+            FROM upload_counts
+            WHERE uploaded_timestamp > <min> AND uploaded_timestamp < <max>
+            ```
+        * adjust the table itself and the above query to the materialized view `upload_counts`
+            * 
+            ```sql
+            ALTER TABLE videos ADD video_duration INT
+
+            SELECT SUM(video_duration)
+            FROM upload_counts
+            WHERE uploaded_timestamp > <min> AND uploaded_timestamp < <max>
+            ```
+        * adjust the table itself and the above query to the materialized view `upload_counts`
+            * 
+            ```sql
+            ALTER TABLE videos ADD video_duration INT
+
+            SELECT AVG(video_duration)
+            FROM upload_counts
+            WHERE uploaded_timestamp > <min> AND uploaded_timestamp < <max>
+            ```
+        * Whenever `videos` is updated, `upload_counts` will be updated soon after. The new calls can be made to that.
+        
+# Exercise 5.4
