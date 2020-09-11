@@ -890,3 +890,18 @@ ALLOW FILTERING;
         * users never need to update them
         * users not be concerned with their value
     * Adding an artificial column gives you more control than choosing an exisiting column
+
+# Data Model Migration
+* `CREATE TABLE` statements can cause race conditions
+* Don't just drop tables until you are SURE nothing else is using it
+* Can use Spark to move things to the new database
+
+# Anti-Patterns
+* "An anti-pattern is a common repsonse to a recurring problem that is usually ineffective and risks being highly counterproductive" ~ Andrew Koenig
+* What to avoid:
+    * Don't read across whole table frequently
+    * don't use IN clauses
+    * avoid doing READs before WRITEs. They're far too expensive to be used all the time
+    * If you need a lot of secondary indexes, create tables that won't need them
+    * ensure that your collection data types are FROZEN and unchanging
+    
